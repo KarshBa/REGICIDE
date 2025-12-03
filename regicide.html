@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Regicide: Tavern Edition</title>
+	<script>
+  // Auto cache-buster: injects a new <style> tag with a unique version
+  window.addEventListener('DOMContentLoaded', () => {
+    const styleTag = document.querySelector('style');
+    if (styleTag) {
+      const version = '?v=' + Date.now();   // auto-bust cache every load
+      styleTag.setAttribute('data-cache', version);
+    }
+  });
+</script>
     <style>
         :root {
             --wood-dark: #3e2723;
