@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regicide: Tavern Edition</title>
+    <style>
+        :root {
+            --wood-dark: #3e2723;
+            --wood-light: #8d6e63;
+            --parchment: #f4e4bc;
+            --felt-green: #2e4a38;
+            --card-red: #b71c1c;
+            --card-black: #212121;
+            --slate-blue: #483d8b;
+            --gold: #ffd700;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle, #5d4037 0%, #3e2723 100%);
+            font-family: 'Georgia', serif;
+            color: #fff;
+            overflow: hidden;
+            user-select: none;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* --- UI LAYOUT --- */
+        #game-container {
+            display: grid;
+            grid-template-rows: 1fr 1.5fr 1.2fr;
+            width: 100%;
+            max-width: 1000px;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Top Area: Enemy & Stats */
+        #top-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 2px solid var(--wood-light);
+        }
+
+        /* Middle Area: Battlefield */
+        #play-area {
+            position: relative;
+            background: var(--felt-green);
+            box-shadow: inset 0 0 50px #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 10px solid var(--wood-dark);
+            border-radius: 8px;
+            margin: 10px;
+            transition: border-color 0.5s ease;
+        }
+
+        #drop-zone {
+            width: 80%;
+            height: 160px;
+            border: 3px dashed rgba(255,255,255,0.3);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        #drop-zone.drag-over {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--gold);
+            transform: scale(1.02);
+        }
+
+        #action-btn {
+            margin-top: 15px;
+            padding: 10px 30px;
+            font-size: 1.2rem;
+            background: linear-gradient(to bottom, #8d6e63, #5d4037);
+            border: 2px solid #3e2723;
+            color: var(--parchment);
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            transition: transform 0.1s, background-color 0.3s;
+        }
+        
+        #action-btn:active { transform: translateY(2px); }
+        #action-btn:disabled { filter: grayscale(1); cursor: not-allowed; }
+
+        /* Bottom Area: Hand */
+        #hand-area {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 20px;
+            perspective: 1000px;
+        }
+
+        /* --- DECKS & PILES --- */
+        .deck-container {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--parchment);
+        }
+        #tavern-deck-ui { bottom: 20px; left: 20px; }
+        #discard-pile-ui { bottom: 20px; right: 20px; }
+        #castle-deck-ui { top: 20px; left: 20px; }
+
+        /* --- CARDS --- */
+        .card {
+            width: 100px;
+            height: 140px;
+            background-color: #fff;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 5px;
+            box-sizing: border-box;
+            font-weight: bold;
+            cursor: grab;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+            background-image: url('data:image/svg+xml;utf8,<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="1" fill="%23eee"/></svg>');
+        }
+
+        .card:hover {
+            transform: translateY(-20px) scale(1.1);
+            z-index: 100;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .card.red { color: var(--card-red); }
+        .card.black { color: var(--card-black); }
+
+        .card-corner { font-size: 1.2rem; line-height: 1; }
+        .card-corner.bottom { transform: rotate(180deg); align-self: flex-end; }
+        .card-center { 
+            position: absolute; 
+            top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            font-size: 2.5rem; 
+        }
+
+        .card.jester { background: #ffeebb; border: 2px solid var(--slate-blue); }
+        .card.enemy { 
+            width: 140px; 
+            height: 200px; 
+            border: 4px solid var(--card-black);
+            background: #e0e0e0;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes slam {
+            0% { transform: scale(3); opacity: 0; }
+            50% { transform: scale(0.9); opacity: 1; }
+            70% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .slam-effect { animation: slam 0.4s ease-out forwards; }
+        .shake-effect { animation: shake 0.5s; background-color: rgba(255,0,0,0.2) !important; }
+
+        /* --- INFO HUD --- */
+        #enemy-stats {
+            margin-left: 20px;
+            text-shadow: 2px 2px 2px #000;
+        }
+        .stat-bar {
+            background: #333;
+            width: 200px;
+            height: 20px;
+            border-radius: 10px;
+            margin: 5px 0;
+            overflow: hidden;
+            border: 1px solid #fff;
+        }
+        .stat-fill { height: 100%; transition: width 0.5s ease; }
+        .hp-fill { background: #d32f2f; }
+        .atk-fill { background: #fbc02d; }
+
+        #game-message {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--parchment);
+            text-shadow: 1px 1px 2px #000;
+            pointer-events: none;
+        }
+
+        /* Modal */
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            /* Fades in on load, removed when game starts */
+            transition: opacity 0.5s ease; 
+        }
+        .modal-box {
+            background: var(--parchment);
+            color: var(--wood-dark);
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            border: 5px solid var(--wood-dark);
+            max-width: 500px;
+        }
+        .hidden { display: none !important; }
+
+        /* Phase Indicators */
+        .phase-indicator {
+            position: absolute;
+            top: -20px;
+            background: var(--wood-dark);
+            padding: 5px 15px;
+            border-radius: 15px;
+            border: 1px solid var(--gold);
+            font-size: 0.9rem;
+            transition: background-color 0.5s ease;
+        }
+		        /* --- MOBILE LAYOUT: landscape phones --- */
+        @media (max-width: 900px) and (orientation: landscape) {
+
+            /* Global scale-down */
+            body {
+                font-size: 12px;
+            }
+
+            #game-container {
+                max-width: 100%;
+                height: 100vh;
+                grid-template-rows: 0.8fr 1.1fr 0.8fr; /* slightly shorter top/bottom */
+            }
+
+            /* Top area: enemy + stats more compact */
+            #top-area {
+                padding: 4px 6px;
+            }
+
+            #enemy-stats {
+                margin-left: 8px;
+            }
+
+            #enemy-stats .stat-bar {
+                width: 140px;
+                height: 14px;
+            }
+
+            #game-message {
+                top: 4px;
+                font-size: 0.9rem;
+            }
+
+            /* Play area tighter */
+            #play-area {
+                margin: 4px;
+                border-width: 6px;
+                padding: 4px 0;
+            }
+
+            #drop-zone {
+                width: 95%;
+                height: 100px;
+                border-width: 2px;
+            }
+
+            #combat-info {
+                font-size: 0.85rem;
+                height: auto;
+                min-height: 18px;
+            }
+
+            #action-btn {
+                margin-top: 6px;
+                padding: 6px 16px;
+                font-size: 0.9rem;
+            }
+
+            /* Hand area & cards miniaturized */
+            #hand-area {
+                padding-bottom: 6px;
+            }
+
+            .card {
+                width: 64px;
+                height: 90px;
+                padding: 3px;
+                border-radius: 6px;
+            }
+
+            .card.enemy {
+                width: 90px;
+                height: 130px;
+                border-width: 3px;
+            }
+
+            .card-corner {
+                font-size: 0.85rem;
+            }
+
+            .card-center {
+                font-size: 1.6rem;
+            }
+
+            /* Less dramatic hover so they don’t fly off-screen */
+            .card:hover {
+                transform: translateY(-10px) scale(1.05);
+            }
+
+            /* Deck UI tucked in tighter */
+            .deck-container {
+                font-size: 0.7rem;
+            }
+            #tavern-deck-ui,
+            #discard-pile-ui {
+                bottom: 6px;
+            }
+            #castle-deck-ui {
+                top: 6px;
+            }
+
+            /* Phase badge a bit closer in */
+            .phase-indicator {
+                top: -14px;
+                font-size: 0.75rem;
+                padding: 3px 10px;
+            }
+
+            /* Modal: smaller so it fits fully */
+            .modal-box {
+                max-width: 90%;
+                padding: 20px;
+            }
+            .modal-box h1 {
+                margin-top: 0;
+                font-size: 1.4rem;
+            }
+            .modal-box p {
+                font-size: 0.9rem;
+            }
+            #start-btn {
+                font-size: 1rem;
+                padding: 8px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="modal-overlay">
+        <div class="modal-box" id="start-modal">
+            <h1>Regicide</h1>
+            <p>Brave adventurer! The kingdom is corrupt. Work your way through the castle deck to defeat the corrupted monarchs.</p>
+            <p><strong>Mechanics:</strong> Drag cards to play. <br>♥ Heal | ♦ Draw | ♣ Double Dmg | ♠ Shield</p>
+            <p style="font-size: 0.9em;">Solo Rule: Playing a Jester discards your hand and draws 8 new cards.</p>
+            <button id="start-btn" style="padding: 10px 20px; font-size: 1.2rem; cursor: pointer;">Enter Tavern</button>
+        </div>
+        <div class="modal-box hidden" id="game-over-modal">
+            <h1 id="end-title">Game Over</h1>
+            <p id="end-reason"></p>
+            <p id="jester-score"></p>
+            <button onclick="location.reload()" style="padding: 10px 20px; cursor: pointer;">Try Again</button>
+        </div>
+    </div>
+
+    <div id="game-container">
+        
+        <div id="top-area">
+            <div id="castle-deck-ui" class="deck-container">
+                <div class="card" style="background: var(--wood-dark); border: 2px solid #fff;"></div>
+                <span>Castle Deck (<span id="castle-count">12</span>)</span>
+            </div>
+
+            <div id="enemy-container">
+                </div>
+
+            <div id="enemy-stats">
+                <div style="font-size: 1.5rem; font-weight: bold;" id="enemy-name">Jack of Spades</div>
+                <div>Health: <span id="hp-text">20</span></div>
+                <div class="stat-bar"><div class="stat-fill hp-fill" id="hp-bar" style="width: 100%"></div></div>
+                <div>Attack: <span id="atk-text">10</span></div>
+            </div>
+        </div>
+
+        <div id="play-area">
+            <div id="game-message">Phase: Attack</div>
+            <div class="phase-indicator" id="phase-badge">ATTACK PHASE</div>
+            
+            <div id="drop-zone">
+                <span style="opacity: 0.5; color: #fff;">Drag cards here</span>
+            </div>
+
+            <div id="combat-info" style="margin-top: 10px; height: 20px; color: var(--gold);">
+                </div>
+
+            <button id="action-btn">Commit Attack</button>
+        </div>
+
+        <div id="tavern-deck-ui" class="deck-container">
+            <div class="card" style="background: var(--wood-dark); border: 2px solid #fff;"></div>
+            <span>Tavern (<span id="tavern-count">40</span>)</span>
+        </div>
+
+        <div id="hand-area">
+            </div>
+
+        <div id="discard-pile-ui" class="deck-container">
+            <div id="discard-top" class="card" style="visibility: hidden;"></div>
+            <span>Discard</span>
+        </div>
+
+    </div>
+
+<script>
+    /**
+     * REGICIDE GAME LOGIC - CLEANED AND CORRECTED
+     */
+
+    // --- CONFIGURATION & CONSTANTS ---
+    const SUITS = {
+        'H': { symbol: '♥', color: 'red', name: 'Hearts' },
+        'D': { symbol: '♦', color: 'red', name: 'Diamonds' },
+        'C': { symbol: '♣', color: 'black', name: 'Clubs' },
+        'S': { symbol: '♠', color: 'black', name: 'Spades' }
+    };
+
+    // Card Values. J=10, Q=15, K=20, A=1
+    const VALUES = {
+        'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
+        'J': 10, 'Q': 15, 'K': 20, 'Jester': 0
+    };
+
+    // Enemy Stats
+    const ENEMY_STATS = {
+        'J': { hp: 20, atk: 10 },
+        'Q': { hp: 30, atk: 15 },
+        'K': { hp: 40, atk: 20 }
+    };
+
+    // --- STATE MANAGEMENT ---
+    const state = {
+        phase: 'ATTACK', // 'ATTACK', 'DEFENSE'
+        tavernDeck: [],
+        castleDeck: [],
+        discardPile: [],
+        hand: [],
+        playArea: [], 
+        currentEnemy: null,
+        enemyHP: 0,
+        enemyMaxHP: 0,
+        shieldsActive: 0, // Persists until enemy defeated
+        jesterUsedCount: 0, // Solo Rule: Max 2 uses
+        damageToSatisfy: 0
+    };
+
+    // --- INITIALIZATION ---
+
+    function initGame() {
+        createTavernDeck();
+        createCastleDeck();
+        drawHand(8); // Solo hand limit is 8
+        revealNextEnemy();
+        updateUI();
+    }
+
+    // Creates deck (2-10, A, 2 Jesters)
+    function createTavernDeck() {
+        state.tavernDeck = [];
+        for (let s of Object.keys(SUITS)) {
+            for (let i = 2; i <= 10; i++) {
+                state.tavernDeck.push({ rank: i.toString(), suit: s, type: 'number' });
+            }
+            state.tavernDeck.push({ rank: 'A', suit: s, type: 'animal' });
+        }
+        state.tavernDeck.push({ rank: 'Jester', suit: null, type: 'jester' });
+        state.tavernDeck.push({ rank: 'Jester', suit: null, type: 'jester' });
+        
+        shuffle(state.tavernDeck);
+    }
+
+    // Stacked Deck (K bottom, Q mid, J top)
+    function createCastleDeck() {
+        const jacks = [], queens = [], kings = [];
+        for (let s of Object.keys(SUITS)) {
+            jacks.push({ rank: 'J', suit: s, type: 'enemy' });
+            queens.push({ rank: 'Q', suit: s, type: 'enemy' });
+            kings.push({ rank: 'K', suit: s, type: 'enemy' });
+        }
+        shuffle(jacks); shuffle(queens); shuffle(kings);
+        state.castleDeck = [...kings, ...queens, ...jacks]; // Pop from end, so Jacks are last in array
+    }
+
+    function revealNextEnemy() {
+        if (state.castleDeck.length === 0) {
+            triggerWin();
+            return;
+        }
+        const enemyCard = state.castleDeck.pop();
+        state.currentEnemy = enemyCard;
+        const stats = ENEMY_STATS[enemyCard.rank];
+        state.enemyHP = stats.hp;
+        state.enemyMaxHP = stats.hp;
+        state.shieldsActive = 0; // Reset shields for a new enemy
+        
+        state.phase = 'ATTACK';
+        state.playArea = [];
+        renderEnemy();
+        updateUI();
+    }
+
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    function drawCard() {
+        if (state.tavernDeck.length === 0) return null;
+        if (state.hand.length >= 8) return null;
+        const card = state.tavernDeck.pop();
+        state.hand.push(card);
+        return card;
+    }
+
+    function drawHand(count) {
+        for(let i=0; i<count; i++) drawCard();
+    }
+
+    function getCardValue(card) {
+        return VALUES[card.rank];
+    }
+
+    // --- GAME LOGIC: COMBAT & POWERS ---
+
+    function calculateAttackStats() {
+        let totalDmg = 0;
+        let totalShields = 0;
+        let drawCount = 0;
+        let healAmount = 0;
+        
+        // Jester check (Solo mode power)
+        if (state.playArea.length === 1 && state.playArea[0].type === 'jester') {
+            return { dmg: 0, shields: 0, draw: 0, heal: 0, jester: true };
+        }
+
+        const immunity = state.currentEnemy.suit; // Enemy immunity
+
+        // Sum Base Damage
+        state.playArea.forEach(c => totalDmg += getCardValue(c));
+
+        let hasClub = false, hasSpade = false, hasDiamond = false, hasHeart = false;
+        state.playArea.forEach(c => {
+            if (c.suit === 'C') hasClub = true;
+            if (c.suit === 'S') hasSpade = true;
+            if (c.suit === 'D') hasDiamond = true;
+            if (c.suit === 'H') hasHeart = true;
+        });
+
+        // Resolve Powers if not Immune
+        if (hasClub && immunity !== 'C') totalDmg *= 2; // Clubs Double Dmg
+        if (hasSpade && immunity !== 'S') {
+             // Shield = Value Played (not doubled damage value)
+             let baseVal = 0;
+             state.playArea.forEach(c => baseVal += getCardValue(c));
+             totalShields = baseVal;
+        }
+        if (hasDiamond && immunity !== 'D') drawCount = totalDmg; // Draw = Dmg
+        if (hasHeart && immunity !== 'H') healAmount = totalDmg; // Heal = Dmg
+
+        return { dmg: totalDmg, shields: totalShields, draw: drawCount, heal: healAmount, jester: false };
+    }
+
+    function commitAttack() {
+        if (state.playArea.length === 0) {
+             // Yielding/Skip Turn
+             state.phase = 'DEFENSE';
+             startDefensePhase();
+             return;
+        }
+
+        const stats = calculateAttackStats();
+        
+        // 1. Handle Jester (Solo Rule: Discard and Refill)
+        if (stats.jester) {
+            if (state.jesterUsedCount >= 2) {
+                alert("You have already used both Jesters!");
+                return;
+            }
+            
+            state.jesterUsedCount++; 
+            movePlayedToDiscard(); // Discard the Jester card
+            
+            // Discard entire hand
+            state.discardPile.push(...state.hand);
+            state.hand = [];
+
+            // Refill to 8
+            drawHand(8);
+
+            document.getElementById('phase-badge').innerText = "HAND REPLENISHED!";
+            
+            // Player immediately starts a new turn
+            state.phase = 'ATTACK';
+            updateUI();
+            return; 
+        }
+
+        // 2. Hearts (Heal)
+        if (stats.heal > 0) healDeck(stats.heal);
+
+        // 3. Diamonds (Draw)
+        if (stats.draw > 0) {
+            let drawn = 0;
+            // Draw up to the draw value OR hand limit OR deck empty
+            while(drawn < stats.draw && state.hand.length < 8 && state.tavernDeck.length > 0) {
+                drawCard();
+                drawn++;
+            }
+        }
+
+        // 4. Spades (Shield)
+        state.shieldsActive += stats.shields;
+
+        // 5. Deal Damage
+        applyDamageToEnemy(stats.dmg);
+    }
+
+    function healDeck(amount) {
+        if (state.discardPile.length === 0) return;
+        shuffle(state.discardPile);
+        const count = Math.min(amount, state.discardPile.length);
+        const toHeal = state.discardPile.splice(0, count);
+        state.tavernDeck.unshift(...toHeal); // Place under (bottom of) deck
+    }
+
+    function applyDamageToEnemy(dmg) {
+        animateImpact();
+        state.enemyHP -= dmg;
+        movePlayedToDiscard();
+        renderEnemy();
+
+        if (state.enemyHP <= 0) {
+            handleEnemyDefeat(state.enemyHP === 0);
+        } else {
+            startDefensePhase();
+        }
+    }
+
+    function handleEnemyDefeat(exactDamage) {
+        setTimeout(() => {
+            if (exactDamage) {
+                // Exact damage -> Enemy goes to top of Tavern Deck
+                state.currentEnemy.type = 'enemy-converted';
+                state.tavernDeck.push(state.currentEnemy); 
+                shuffle(state.tavernDeck); // Shuffle needed after putting in the deck
+            } else {
+                // Excess damage -> Enemy goes to Discard Pile
+                state.discardPile.push(state.currentEnemy);
+            }
+            
+            revealNextEnemy();
+        }, 1000);
+    }
+
+    function startDefensePhase() {
+        state.phase = 'DEFENSE';
+        const enemyAtk = ENEMY_STATS[state.currentEnemy.rank].atk;
+        state.damageToSatisfy = Math.max(0, enemyAtk - state.shieldsActive);
+        
+        if (state.damageToSatisfy === 0) {
+            // Shields fully blocked it. Next turn is Attack.
+            setTimeout(() => {
+                state.phase = 'ATTACK';
+                updateUI();
+            }, 1000);
+            return;
+        }
+        
+        // If player has no cards to defend with, they lose.
+        if (state.hand.length === 0) {
+            triggerLoss("You were unable to satisfy the enemy's attack.");
+            return;
+        }
+
+        updateUI();
+    }
+
+    function commitDefense() {
+        let discardValue = 0;
+        state.playArea.forEach(c => discardValue += getCardValue(c));
+
+        if (discardValue >= state.damageToSatisfy) {
+            movePlayedToDiscard();
+            state.phase = 'ATTACK';
+            updateUI();
+        } else {
+            alert("Not enough value to block attack! Drag more cards or risk a loss.");
+        }
+    }
+
+    function movePlayedToDiscard() {
+        state.discardPile.push(...state.playArea);
+        state.playArea = [];
+    }
+
+    // --- GAME OVER STATES ---
+
+    function triggerWin() {
+        document.getElementById('end-title').innerText = "VICTORY!";
+        document.getElementById('end-reason').innerText = "You have defeated the last King!";
+        
+        let scoreText = "";
+        if (state.jesterUsedCount === 0) {
+            scoreText = "Gold Victory! (0 Jesters Used)";
+        } else if (state.jesterUsedCount === 1) {
+            scoreText = "Silver Victory! (1 Jester Used)";
+        } else {
+            scoreText = "Bronze Victory! (2 Jesters Used)";
+        }
+        document.getElementById('jester-score').innerText = scoreText;
+
+        document.getElementById('modal-overlay').classList.remove('hidden');
+        document.getElementById('start-modal').classList.add('hidden');
+        document.getElementById('game-over-modal').classList.remove('hidden');
+    }
+
+    function triggerLoss(reason) {
+        document.getElementById('end-title').innerText = "DEFEAT";
+        document.getElementById('end-reason').innerText = reason || "You fell in battle against the corrupted royalty.";
+        document.getElementById('jester-score').innerText = "";
+        document.getElementById('modal-overlay').classList.remove('hidden');
+        document.getElementById('start-modal').classList.add('hidden');
+        document.getElementById('game-over-modal').classList.remove('hidden');
+    }
+
+    // --- RENDERING & UI ---
+
+    const handContainer = document.getElementById('hand-area');
+    const dropZone = document.getElementById('drop-zone');
+    const playAreaDiv = document.getElementById('play-area');
+    const btn = document.getElementById('action-btn');
+    const info = document.getElementById('combat-info');
+
+    function createCardElement(card, index, source) {
+        const el = document.createElement('div');
+        el.className = `card ${card.suit ? SUITS[card.suit].color : ''} ${card.type === 'jester' ? 'jester' : ''}`;
+        el.draggable = true;
+        
+        let content = '';
+        if (card.type === 'jester') {
+            content = `<div class="card-center">🎭</div><div style="font-size: 0.7em; text-align: center; position: absolute; bottom: 5px; width: 100%;">Refill Hand</div>`;
+            el.style.color = 'var(--card-black)';
+        } else {
+            const sym = SUITS[card.suit].symbol;
+            content = `
+                <div class="card-corner top">${card.rank}<br>${sym}</div>
+                <div class="card-center">${sym}</div>
+                <div class="card-corner bottom">${card.rank}<br>${sym}</div>
+            `;
+        }
+        el.innerHTML = content;
+
+        el.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', JSON.stringify({ index, source }));
+        });
+        
+        el.addEventListener('click', () => {
+            handleCardMove(index, source);
+        });
+
+        return el;
+    }
+
+    function renderHand() {
+        handContainer.innerHTML = '';
+        state.hand.forEach((card, i) => {
+            const el = createCardElement(card, i, 'hand');
+            const rot = (i - state.hand.length/2) * 5;
+            const y = Math.abs(i - state.hand.length/2) * 5;
+            el.style.transform = `rotate(${rot}deg) translateY(${y}px)`;
+            handContainer.appendChild(el);
+        });
+    }
+
+    function renderPlayArea() {
+        dropZone.innerHTML = '';
+        if (state.playArea.length === 0) {
+            dropZone.innerHTML = state.phase === 'ATTACK' 
+                ? '<span style="opacity:0.5">Drag Attack Cards Here</span>' 
+                : `<span style="opacity:0.5; color:#ffaaaa">Drag Cards to Discard (Need ${state.damageToSatisfy} Dmg)</span>`;
+        }
+        state.playArea.forEach((card, i) => {
+            const el = createCardElement(card, i, 'play');
+            el.classList.add('slam-effect');
+            dropZone.appendChild(el);
+        });
+
+        if (state.phase === 'ATTACK') {
+            const stats = calculateAttackStats();
+            btn.innerText = state.playArea.length === 0 ? "Yield (Skip Turn)" : "Commit Attack";
+            btn.style.background = 'linear-gradient(to bottom, #8d6e63, #5d4037)';
+            
+            let txt = '';
+            if (stats.jester) {
+                txt = `Jester Used: ${state.jesterUsedCount}/2. Discard hand, Refill to 8.`;
+            } else {
+                txt = `Dmg: ${stats.dmg}`;
+                if (stats.shields) txt += ` | Shield: +${stats.shields}`;
+                if (stats.heal) txt += ` | Heal: ${stats.heal}`;
+                if (stats.draw) txt += ` | Draw: ${stats.draw}`;
+                
+                // Immunity warnings
+                if (state.playArea.length > 0) {
+                     const playedSuit = state.playArea.find(c => c.suit === state.currentEnemy.suit);
+                     if (playedSuit) {
+                         txt += " (POWER IMMUNE)";
+                     }
+                }
+            }
+            info.innerText = txt;
+
+        } else {
+            let currentVal = 0;
+            state.playArea.forEach(c => currentVal += getCardValue(c));
+            const remaining = Math.max(0, state.damageToSatisfy - currentVal);
+            
+            btn.innerText = remaining === 0 ? "Confirm Defense" : "Select More Cards";
+            btn.style.background = remaining === 0 ? '#2e7d32' : '#c62828';
+            info.innerText = `Incoming: ${state.damageToSatisfy} | Selected: ${currentVal} | Remaining: ${remaining}`;
+            
+            // Losing condition: Cannot satisfy and hand is empty
+            if (state.hand.length === 0 && currentVal < state.damageToSatisfy) {
+                 triggerLoss("You do not have enough cards in your hand to satisfy the enemy's attack!");
+            }
+        }
+    }
+
+    function renderEnemy() {
+        const container = document.getElementById('enemy-container');
+        container.innerHTML = '';
+        if (!state.currentEnemy) return;
+
+        const c = state.currentEnemy;
+        const el = document.createElement('div');
+        el.className = `card enemy ${SUITS[c.suit].color}`;
+        el.innerHTML = `
+             <div class="card-corner top">${c.rank}<br>${SUITS[c.suit].symbol}</div>
+             <div class="card-center" style="font-size:4rem">☠️</div>
+             <div class="card-corner bottom">${c.rank}<br>${SUITS[c.suit].symbol}</div>
+        `;
+        container.appendChild(el);
+
+        document.getElementById('enemy-name').innerText = `${c.rank === 'J'?'Jack':c.rank==='Q'?'Queen':'King'} of ${SUITS[c.suit].name}`;
+        
+        const hpPct = (state.enemyHP / state.enemyMaxHP) * 100;
+        document.getElementById('hp-bar').style.width = `${Math.max(0, hpPct)}%`;
+        document.getElementById('hp-text').innerText = Math.max(0, state.enemyHP);
+
+        const baseAtk = ENEMY_STATS[c.rank].atk;
+        const currentAtk = Math.max(0, baseAtk - state.shieldsActive);
+        document.getElementById('atk-text').innerText = `${currentAtk} (Base ${baseAtk})`;
+    }
+
+    function animateImpact() {
+        const el = document.querySelector('.card.enemy');
+        if (el) {
+            el.classList.add('shake-effect');
+            setTimeout(() => el.classList.remove('shake-effect'), 500);
+        }
+    }
+
+    function updateUI() {
+        renderHand();
+        renderPlayArea();
+        document.getElementById('tavern-count').innerText = state.tavernDeck.length;
+        document.getElementById('castle-count').innerText = state.castleDeck.length;
+        
+        // Discard Pile Top
+        const discTop = state.discardPile.length > 0 ? state.discardPile[state.discardPile.length-1] : null;
+        const discEl = document.getElementById('discard-top');
+        if (discTop) {
+            discEl.style.visibility = 'visible';
+            discEl.className = `card ${discTop.suit ? SUITS[discTop.suit].color : ''}`;
+            const sym = discTop.type === 'jester' ? '🎭' : SUITS[discTop.suit].symbol;
+            discEl.innerHTML = `<div class="card-center">${sym}</div>`;
+        } else {
+            discEl.style.visibility = 'hidden';
+        }
+
+        // Phase badge
+        const badge = document.getElementById('phase-badge');
+        badge.innerText = state.phase === 'ATTACK' ? "ATTACK PHASE" : "DEFEND!";
+        badge.style.backgroundColor = state.phase === 'ATTACK' ? '#3e2723' : '#b71c1c';
+        playAreaDiv.style.borderColor = state.phase === 'ATTACK' ? 'var(--wood-dark)' : '#b71c1c';
+    }
+
+    // --- INPUT HANDLING ---
+
+    function handleCardMove(index, source) {
+        if (source === 'hand') {
+            const card = state.hand[index];
+            if (state.phase === 'ATTACK') {
+                if (!isValidPlay(card, state.playArea)) {
+                    // Jester can only be played alone
+                    if (card.type === 'jester' && state.playArea.length > 0) return;
+                    // Other cards must follow combo rules
+                    if (card.type !== 'jester' && state.playArea.length > 0 && !isValidPlay(card, state.playArea)) return;
+                }
+            }
+            state.hand.splice(index, 1);
+            state.playArea.push(card);
+
+        } else if (source === 'play') {
+            const card = state.playArea[index];
+            state.playArea.splice(index, 1);
+            state.hand.push(card);
+        }
+        updateUI();
+    }
+
+    // Combos: Sets of 2,3,4 of same number if total <= 10, or Animal Companion combo (max 2)
+    function isValidPlay(card, currentArea) {
+        if (currentArea.length === 0) return true;
+        const first = currentArea[0];
+
+        if (card.type === 'jester' || first.type === 'jester') return false; // Jester alone
+
+        // Animal Companions (A)
+        const hasAnimal = currentArea.some(c => c.type === 'animal');
+        const isAnimal = card.type === 'animal';
+
+        if (hasAnimal || isAnimal) {
+             if (currentArea.length >= 2) return false;
+             return true; 
+        }
+
+        // Standard Number Combos
+        if (card.rank === first.rank) {
+             let total = (currentArea.length + 1) * getCardValue(card);
+             if (total <= 10) return true;
+        }
+
+        return false;
+    }
+
+    // --- EVENTS ---
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        if (data.source === 'hand') handleCardMove(data.index, 'hand');
+    });
+
+    handContainer.addEventListener('dragover', (e) => e.preventDefault());
+    handContainer.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        if (data.source === 'play') handleCardMove(data.index, 'play');
+    });
+
+    btn.addEventListener('click', () => {
+        if (state.phase === 'ATTACK') commitAttack();
+        else commitDefense();
+    });
+
+    // --- START BUTTON FIX ---
+    document.getElementById('start-btn').addEventListener('click', () => {
+        document.getElementById('modal-overlay').classList.add('hidden');
+        initGame();
+    });
+
+</script>
+</body>
+</html>
