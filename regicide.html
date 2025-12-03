@@ -375,15 +375,26 @@
             }
 
             /* Deck UI tucked in tighter */
+                        /* Deck UI: fixed to corners on mobile landscape */
             .deck-container {
                 font-size: 0.7rem;
+                position: fixed;
+                z-index: 50;
             }
-            #tavern-deck-ui,
+
+            #tavern-deck-ui {
+                bottom: 8px;
+                left: 8px;
+            }
+
             #discard-pile-ui {
-                bottom: 80px;  /* was 6px – move above hand */
+                bottom: 8px;
+                right: 8px;
             }
+
             #castle-deck-ui {
-                top: 6px;
+                top: 8px;
+                left: 8px;
             }
 
             /* Phase badge a bit closer in */
@@ -526,15 +537,23 @@
             /* Deck labels pulled in tighter */
             .deck-container {
                 font-size: 0.6rem;
+                position: fixed;
+                z-index: 50;
             }
 
-            #tavern-deck-ui,
+            #tavern-deck-ui {
+                bottom: 8px;
+                left: 8px;
+            }
+
             #discard-pile-ui {
-                bottom: 80px;  /* lifted above the hand row */
+                bottom: 8px;
+                right: 8px;
             }
 
             #castle-deck-ui {
-                top: 4px;
+                top: 8px;
+                left: 8px;
             }
 
             /* Modal scaled down to fit */
