@@ -126,9 +126,6 @@
   	      color: var(--parchment);
           pointer-events: none; /* stays decorative */
         }
-        #tavern-deck-ui { bottom: 20px; left: 20px; }
-        #discard-pile-ui { bottom: 20px; right: 20px; }
-        #castle-deck-ui { top: 20px; left: 20px; }
 
         /* --- CARDS --- */
         .card {
@@ -376,26 +373,10 @@
 
             /* Deck UI tucked in tighter */
                         /* Deck UI: fixed to corners on mobile landscape */
-            .deck-container {
-                font-size: 0.7rem;
-                position: fixed;
-                z-index: 50;
-            }
-
-            #tavern-deck-ui {
-                bottom: 8px;
-                left: 8px;
-            }
-
-            #discard-pile-ui {
-                bottom: 8px;
-                right: 8px;
-            }
-
-            #castle-deck-ui {
-                top: 8px;
-                left: 8px;
-            }
+                /* Deck UI tucked in tighter */
+  		    .deck-container {
+     		    font-size: 0.7rem;
+  		    }
 
             /* Phase badge a bit closer in */
             .phase-indicator {
@@ -536,26 +517,8 @@
 
             /* Deck labels pulled in tighter */
             .deck-container {
-                font-size: 0.6rem;
-                position: fixed;
-                z-index: 50;
-            }
-
-            #tavern-deck-ui {
-                bottom: 8px;
-                left: 8px;
-            }
-
-            #discard-pile-ui {
-                bottom: 8px;
-                right: 8px;
-            }
-
-            #castle-deck-ui {
-                top: 8px;
-                left: 8px;
-            }
-
+       		    font-size: 0.6rem;
+   		    }
             /* Modal scaled down to fit */
             .modal-box {
                 max-width: 90%;
@@ -640,31 +603,35 @@
         </div>
 
         <div id="play-area">
-            <div id="game-message">Phase: Attack</div>
-            <div class="phase-indicator" id="phase-badge">ATTACK PHASE</div>
-            
-            <div id="drop-zone">
-                <span style="opacity: 0.5; color: #fff;">Drag cards here</span>
-            </div>
+    <div id="game-message">Phase: Attack</div>
+    <div class="phase-indicator" id="phase-badge">ATTACK PHASE</div>
+    
+    <div id="drop-zone">
+        <span style="opacity: 0.5; color: #fff;">Drag cards here</span>
+    </div>
 
-            <div id="combat-info" style="margin-top: 10px; height: 20px; color: var(--gold);">
-                </div>
+    <div id="combat-info" style="margin-top: 10px; height: 20px; color: var(--gold);">
+    </div>
 
-            <button id="action-btn">Commit Attack</button>
-        </div>
+    <button id="action-btn">Commit Attack</button>
+</div>
 
-        <div id="tavern-deck-ui" class="deck-container">
-		    <div class="card deck-back"></div>
-   			 <span>Tavern (<span id="tavern-count">40</span>)</span>
-		</div>
+<div id="hand-area">
+    <!-- Tavern deck anchored to hand (left) -->
+    <div id="tavern-deck-ui" class="deck-container">
+        <div class="card deck-back"></div>
+        <span>Tavern (<span id="tavern-count">40</span>)</span>
+    </div>
 
-        <div id="hand-area">
-            </div>
+    <!-- Actual hand cards go here -->
+    <div id="hand-cards"></div>
 
-        <div id="discard-pile-ui" class="deck-container">
-            <div id="discard-top" class="card" style="visibility: hidden;"></div>
-            <span>Discard</span>
-        </div>
+    <!-- Discard pile anchored to hand (right) -->
+    <div id="discard-pile-ui" class="deck-container">
+        <div id="discard-top" class="card" style="visibility: hidden;"></div>
+        <span>Discard</span>
+    </div>
+</div>
 
     </div>
 
@@ -993,7 +960,7 @@
 
     // --- RENDERING & UI ---
 
-    const handContainer = document.getElementById('hand-area');
+	const handContainer = document.getElementById('hand-cards');
     const dropZone = document.getElementById('drop-zone');
     const playAreaDiv = document.getElementById('play-area');
     const btn = document.getElementById('action-btn');
