@@ -116,6 +116,16 @@
             padding-bottom: 20px;
             perspective: 1000px;
         }
+		/* Flex row for the actual hand cards */
+		#hand-cards {
+   			 display: flex;
+    		 justify-content: center;
+   			 align-items: flex-end;
+  		     width: 100%;
+    		 height: 100%;
+    		 pointer-events: auto; /* make sure cards are interactive */
+		}
+
 
         /* --- DECKS & PILES --- */
         .deck-container {
