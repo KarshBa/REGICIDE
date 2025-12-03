@@ -119,12 +119,12 @@
 
         /* --- DECKS & PILES --- */
         .deck-container {
-            position: absolute;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-size: 0.8rem;
-            color: var(--parchment);
+  		  display: flex;
+   		  flex-direction: column;
+  	      align-items: center;
+ 	      font-size: 0.8rem;
+  	      color: var(--parchment);
+          pointer-events: none; /* stays decorative */
         }
         #tavern-deck-ui { bottom: 20px; left: 20px; }
         #discard-pile-ui { bottom: 20px; right: 20px; }
@@ -576,6 +576,30 @@
                 padding: 6px 14px;
             }
         }
+			#top-area {
+  			    position: relative;
+		}
+
+			#castle-deck-ui {
+    			position: absolute;
+ 			    left: 0.75rem;
+   			    bottom: 0.75rem; /* vertically aligns with enemy card bottom */
+		}
+			#hand-area {
+   				 position: relative;
+		}
+
+			#tavern-deck-ui {
+   				 position: absolute;
+    			 left: 0.5rem;
+    			 bottom: 0.5rem;
+		}
+
+			#discard-pile-ui {
+    			 position: absolute;
+    			 right: 0.5rem;
+    			 bottom: 0.5rem;
+		}
     </style>
 </head>
 <body>
